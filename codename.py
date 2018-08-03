@@ -14,13 +14,14 @@ class Env():
     pop_size: max population size of each generation
     """
     def __init__(self, gene_len=3, word_min=3, word_max=9,
-                 phrase_len=2, pop_size=100):
+                 phrase_len=2, pop_size=100, generations=100):
         self.gene_len = gene_len
         self.word_min = word_min
         self.word_max = word_max
-        self.phrase_len = 2
-        self.gene_scores = {}
+        self.phrase_len = phrase_len
         self.pop_size = pop_size
+
+        self.gene_scores = {}
 
 
 class Word():
@@ -33,6 +34,9 @@ class Word():
         """
         self.env = env
         self.word = w.lower()
+
+    def __str__(self):
+        return self.word
 
     def genes(self):
         """
@@ -84,6 +88,10 @@ class ScoredWord(Word):
             max(0, self.env.word_min - len(self.word)) - \
             max(0, len(self.word) - self.env.word_max)
 
+    def __str__(self):
+        return "{} {}:{}:{}".format(self.word, self.scrabble_score,
+                                    self.gene_score, self.score)
+
 
 class Phrase():
     """
@@ -96,16 +104,21 @@ class Phrase():
         self.words = words
         self.score = sum([w.score for w in words])
 
+    def __str__(self):
+        swords = [str(w) for w in self.words]
+        return "{}={}".format("; ".join(swords), self.score)
+
     def breed(phrase1, phrase2):
         """
         Breed corresponding words between the two phrases, generating a new
         phrase. If the phrases are of unequal length, the new phrase will
-        be of the same length of the shortest.
+        be of the same length of the shortest parent phrase.
         """
         baby_len = min(len(phrase1.words), len(phrase2.words))
         baby_words = []
         for i in range(baby_len):
-            baby_words.append(phrase1.words[i].breed(phrase2.words[i]))
+            baby = phrase1.words[i].breed(phrase2.words[i])
+            baby_words.append(ScoredWord(phrase1.env, baby))
 
         return Phrase(phrase1.env, baby_words)
 
@@ -119,9 +132,10 @@ class Codename():
         corpus: a list of starting words
         """
         self.env = env
-        self.corpus = corpus
-        self.population = {}
+        self.corpus = [c for c in corpus if
+                       len(c) >= env.word_min and c[0].isalpha()]
         self.compute_gene_scores()
+        self.build_population()
 
     def compute_gene_scores(self):
         """
@@ -139,6 +153,43 @@ class Codename():
                 else:
                     seen_genes[g] = 1
         self.env.gene_scores = seen_genes
+
+    def build_population(self):
+        """
+        Starting with the corpus, divide up all the words into a population of
+        phrases, such that each word is used at most once in the population,
+        and no phrases are built without the desired number of words.
+        """
+        e = self.env
+        pool = self.corpus[:]
+        random.shuffle(pool)
+        self.population = []
+        for i in range(0, len(pool), e.phrase_len):
+            words = pool[i:i+e.phrase_len]
+            if len(words) == e.phrase_len:
+                self.population.append(Phrase(e, [ScoredWord(e, w)
+                                                  for w in words]))
+
+    def reduce_population(self):
+        """
+        Winnow the population down to the maximum size, ensuring that the
+        highest-scoring phrases are preserved for the next generation.
+        The current population is replaced by this method and the previous
+        is discarded.
+        """
+        p = sorted(self.population, key=lambda x: x.score)[:self.env.pop_size]
+        self.population = p
+
+    def breed(self):
+        """
+        Starting with the current population, randomly crossbreed phrases
+        such that each parent phrase is used only once. After breeding,
+        the population should be reduced before the next generation.
+        """
+        parents = self.population[:]
+        random.shuffle(parents)
+        for i in range(0, len(parents)-1, 2):
+            self.population.append(parents[i].breed(parents[i+1]))
 
 
 if __name__ == "__main__":

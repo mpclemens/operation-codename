@@ -117,6 +117,9 @@ class TestCodename(unittest.TestCase):
         c = Codename(e,
                      corpus=["apple", "banana", "cherry", "cheese", "chalk"])
 
+        self.assertIsNotNone(c, msg="making flake8 happy with unused variable")
+
+        # initializing c initializes e.gene_scores
         self.assertNotEqual(0, len(e.gene_scores), "expected gene scores")
 
         self.assertTrue(e.gene_scores.get('ch') > 0,
@@ -125,6 +128,81 @@ class TestCodename(unittest.TestCase):
                         "expected gene score for 'pp'")
         self.assertTrue(e.gene_scores.get('ch') > e.gene_scores.get('pp'),
                         "expected 'ch' score > 'pp' score")
+
+    def test_build_population(self):
+        e = Env(phrase_len=2)
+        c = Codename(e,
+                     corpus=["apple", "banana", "cherry", "cheese", "chalk"])
+        self.assertEqual(2, len(c.population),
+                         msg="expected initialized population 1")
+
+        e.phrase_len = 1
+        c = Codename(e,
+                     corpus=["apple", "banana", "cherry", "cheese", "chalk"])
+        self.assertEqual(5, len(c.population),
+                         msg="expected initialized population 2")
+
+        e.phrase_len = 5
+        c = Codename(e,
+                     corpus=["apple", "banana", "cherry", "cheese", "chalk"])
+        self.assertEqual(1, len(c.population),
+                         msg="expected initialized population 3")
+
+        e.phrase_len = 10
+        c = Codename(e,
+                     corpus=["apple", "banana", "cherry", "cheese", "chalk"])
+        self.assertEqual(0, len(c.population),
+                         msg="expected empty population")
+
+    def test_reduce_population(self):
+        e = Env(phrase_len=1,
+                word_min=1,
+                pop_size=10)
+
+        # words 'a', 'b', 'c', ... 'z'
+        c = Codename(e, corpus=[chr(ord('a')+i) for i in range(26)])
+        self.assertEqual(26, len(c.population),
+                         msg="expected full alphabet")
+
+        c.reduce_population()
+        self.assertEqual(10, len(c.population),
+                         msg="expected reduced population")
+
+    def test_breed_a_generation(self):
+        e = Env(phrase_len=2,
+                word_min=1,
+                gene_len=2,
+                pop_size=10)
+
+        # words 'aaa', 'bbb', 'ccc', ... 'zzz'
+        c = Codename(e, corpus=[chr(ord('a')+i)*3 for i in range(26)])
+        self.assertEqual(13, len(c.population),
+                         msg="expected phrase pairs before breed")
+
+        c.breed()
+        self.assertEqual(13 + 13//2, len(c.population),
+                         msg="expected population growth after breed")
+
+        c.reduce_population()
+        self.assertEqual(10, len(c.population),
+                         msg="expected reduced population")
+
+    def test_breed_ten_generations(self):
+        e = Env(phrase_len=2,
+                gene_len=2,
+                pop_size=10)
+
+        # words 'aaa', 'bbb', 'ccc', ... 'zzz'
+        c = Codename(e, corpus=[chr(ord('a')+i)*3 for i in range(26)])
+        self.assertEqual(13, len(c.population),
+                         msg="expected phrase pairs before breed")
+
+        for i in range(10):
+            c.breed()
+            c.reduce_population()
+
+        self.assertEqual(10, len(c.population),
+                         msg="expected reduced population")
 
 
 if __name__ == "__main__":
