@@ -41,7 +41,7 @@ class TestCodename(unittest.TestCase):
         self.assertEqual("", w1.breed(w2),
                          msg="expected empty baby word")
 
-    def test_scrabble_and_gene_scores(self):
+    def test_letter_and_gene_scores(self):
         e = Env()
 
         e.gene_len = 2
@@ -50,7 +50,7 @@ class TestCodename(unittest.TestCase):
                          'zo': 1,
                          'oo': 10}
 
-        # { word: (expected scrabble score, expected gene score) }
+        # { word: (expected letter score, expected gene score) }
         test_data = {
                 "apple": (9, 11),
                 "bee": (5, 0),
@@ -60,21 +60,18 @@ class TestCodename(unittest.TestCase):
 
         for w, s in test_data.items():
             word = ScoredWord(e, w)
-            scrabble, gene = s[:]
-            self.assertEqual(scrabble, word.scrabble_score,
-                             msg="{} scrabble score".format(w))
+            letter, gene = s[:]
+            self.assertEqual(letter, word.letter_score,
+                             msg="{} letter score".format(w))
             self.assertEqual(gene, word.gene_score,
                              msg="{} gene score".format(w))
 
     def test_word_length_scores(self):
-        e = Env()
+        e = Env(gene_len=2,
+                word_min=4,
+                word_max=6)
 
-        e.gene_len = 2
-        e.gene_scores = {}
-        e.word_min = 4
-        e.word_max = 6
-
-        # using the same letters to get a score purely based on Scrabble value,
+        # using the same letters to get a score purely based on letter value,
         # minus any deductions for being too long or short
         #
         # 'd' scores 2 points, and going over or under the word amounts costs
@@ -90,9 +87,9 @@ class TestCodename(unittest.TestCase):
         self.assertTrue(long_word.score > base_word.score,
                         msg="expected long word > base word")
 
-        self.assertTrue(long_word.score < long_word.scrabble_score,
+        self.assertTrue(long_word.score < long_word.letter_score,
                         msg="expected long word penalty")
-        self.assertTrue(short_word.score < short_word.scrabble_score,
+        self.assertTrue(short_word.score < short_word.letter_score,
                         msg="expected short word penalty")
 
         self.assertEqual(2*2 - 2, short_word.score)

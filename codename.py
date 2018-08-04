@@ -12,14 +12,25 @@ class Env():
     phrase_len: how many words make up a phrase
     gene_scores: dict of {gene: score} mappings
     pop_size: max population size of each generation
+
+    letter_weight: multiplier for letter scores for fitness
+    gene_weight: multiploer for gene scores for fitness
+    short_weight: multiplier for short-word penalty
+    long_weight: multiplier for long_word penalty
     """
     def __init__(self, gene_len=3, word_min=3, word_max=9,
-                 phrase_len=2, pop_size=100, generations=100):
+                 phrase_len=2, pop_size=100,
+                 letter_weight=1, gene_weight=1,
+                 short_weight=-1, long_weight=-1):
         self.gene_len = gene_len
         self.word_min = word_min
         self.word_max = word_max
         self.phrase_len = phrase_len
         self.pop_size = pop_size
+        self.letter_weight = letter_weight
+        self.gene_weight = gene_weight
+        self.short_weight = short_weight
+        self.long_weight = long_weight
 
         self.gene_scores = {}
 
@@ -44,52 +55,56 @@ class Word():
         given length
         """
         return [self.word[i:i+self.env.gene_len]
-                for i in range(0, len(self.word) - self.env.gene_len + 1)]
+                for i in range(0, len(self.word) - self.env.gene_len + 1, self.env.gene_len)]
 
     def breed(parent1, parent2):
         """
         Given two parent Words (the caller plus one other), generate a new
-        string made from a random smattering of the genes of the parents,
-        just like real life!
+        string with a gene randomly swapped out.
         """
-        pool = parent1.genes() + parent2.genes()
+        pool = set(parent1.genes() + parent2.genes())
         e = parent1.env
 
         if not pool:
             return ""
 
-        # decides how many genes go into the "baby" word
-        baby_min = min(int(e.word_min/e.gene_len + 0.5), e.gene_len)
-        baby_max = e.word_max//e.gene_len
-        baby_len = random.randint(baby_min, baby_max)
-        return "".join(random.sample(pool, baby_len))
+        baby = random.choice([parent1.word, parent2.word])
+        i = random.randrange(len(baby))
+        baby = baby[0:i] + pool.pop() + baby[i+e.gene_len:]
+        return baby
 
 
 class ScoredWord(Word):
     """
     Derivative of Word: a word with a score set at create time
     """
-    SCRABBLE = {"a": 1, "c": 3, "b": 3, "e": 1, "d": 2, "g": 2,
-                "f": 4, "i": 1, "h": 4, "k": 5, "j": 8, "m": 3,
-                "l": 1, "o": 1, "n": 1, "q": 10, "p": 3, "s": 1,
-                "r": 1, "u": 1, "t": 1, "w": 4, "v": 4, "y": 4,
-                "x": 8, "z": 10}
+    SCORES = {"a": 1, "c": 3, "b": 3, "e": 1, "d": 2, "g": 2,
+              "f": 4, "i": 1, "h": 4, "k": 5, "j": 8, "m": 3,
+              "l": 1, "o": 1, "n": 1, "q": 10, "p": 3, "s": 1,
+              "r": 1, "u": 1, "t": 1, "w": 4, "v": 4, "y": 4,
+              "x": 8, "z": 10}
 
     def __init__(self, env, w):
         """
         Define a new word using environment settings for scoring.
         """
         super().__init__(env, w)
-        self.scrabble_score = sum([ScoredWord.SCRABBLE.get(l, 0)
-                                   for l in self.word])
+        self.letter_score = sum([ScoredWord.SCORES.get(l, 0)
+                                 for l in self.word])
         self.gene_score = sum([self.env.gene_scores.get(g, 0)
                                for g in self.genes()])
-        self.score = self.scrabble_score + self.gene_score - \
-            max(0, self.env.word_min - len(self.word)) - \
-            max(0, len(self.word) - self.env.word_max)
+
+        # how many letters under/over the word is compared to the bounds
+        len_short = max(0, self.env.word_min - len(self.word))
+        len_long = max(0, len(self.word) - self.env.word_max)
+
+        self.score = sum([self.letter_score*env.letter_weight,
+                          self.gene_score*env.gene_weight,
+                          len_short*env.short_weight,
+                          len_long*env.long_weight])
 
     def __str__(self):
-        return "{} {}:{}:{}".format(self.word, self.scrabble_score,
+        return "{} {}:{}:{}".format(self.word, self.letter_score,
                                     self.gene_score, self.score)
 
 
@@ -177,7 +192,9 @@ class Codename():
         The current population is replaced by this method and the previous
         is discarded.
         """
-        p = sorted(self.population, key=lambda x: x.score)[:self.env.pop_size]
+        p = sorted(self.population,
+                   key=lambda x: x.score,
+                   reverse=True)[:self.env.pop_size]
         self.population = p
 
     def breed(self):
@@ -186,12 +203,16 @@ class Codename():
         such that each parent phrase is used only once. After breeding,
         the population should be reduced before the next generation.
         """
-        parents = self.population[:]
-        random.shuffle(parents)
-        for i in range(0, len(parents)-1, 2):
-            self.population.append(parents[i].breed(parents[i+1]))
+        newpop = {}
 
+        while len(newpop.keys()) < self.env.pop_size*1.5:
+            p1, p2 = random.choices(self.population, k=2)
+            baby = p1.breed(p2)
+            # print("xxx {} + {} = {}".format(p1, p2, baby))
+            newpop[str(baby)] = baby
 
-if __name__ == "__main__":
-    p = Env()
-    c = Codename(p)
+        self.population = list(newpop.values())
+
+    def print_population(self):
+        for p in self.population:
+            print(str(p))
