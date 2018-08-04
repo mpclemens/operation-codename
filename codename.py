@@ -14,13 +14,15 @@ class Env():
     pop_size: max population size of each generation
 
     letter_weight: multiplier for letter scores for fitness
-    gene_weight: multiploer for gene scores for fitness
+    gene_weight: multiplier for gene scores for fitness
+    variety_weight: multiplier for number of different letters
+
     short_weight: multiplier for short-word penalty
     long_weight: multiplier for long_word penalty
     """
     def __init__(self, gene_len=3, word_min=3, word_max=9,
                  phrase_len=2, pop_size=100,
-                 letter_weight=1, gene_weight=1,
+                 letter_weight=1, gene_weight=1, variety_weight=1,
                  short_weight=-1, long_weight=-1):
         self.gene_len = gene_len
         self.word_min = word_min
@@ -30,6 +32,7 @@ class Env():
         self.letter_weight = letter_weight
         self.gene_weight = gene_weight
         self.short_weight = short_weight
+        self.variety_weight = variety_weight
         self.long_weight = long_weight
 
         self.gene_scores = {}
@@ -54,23 +57,43 @@ class Word():
         Return a list of genes (sequential letter substrings) of the
         given length
         """
-        return [self.word[i:i+self.env.gene_len]
-                for i in range(0, len(self.word) - self.env.gene_len + 1, self.env.gene_len)]
+        g = self.env.gene_len
+        max_genes = len(self.word)//g * g
+
+        return [self.word[i:i+g] for i in range(0, max_genes)]
 
     def breed(parent1, parent2):
         """
         Given two parent Words (the caller plus one other), generate a new
-        string with a gene randomly swapped out.
+        baby word starting from the caller, and splicing in a gene from
+        the other parent such that the start of the gene is found in the
+        new baby.
+
+        Starting with an empty word results in an empty string, and breeding
+        against an empty word results in no change.
         """
-        pool = set(parent1.genes() + parent2.genes())
+
         e = parent1.env
 
-        if not pool:
-            return ""
+        baby = parent1.word
+        if not baby:
+            return baby
 
-        baby = random.choice([parent1.word, parent2.word])
-        i = random.randrange(len(baby))
-        baby = baby[0:i] + pool.pop() + baby[i+e.gene_len:]
+        pool = set(parent2.genes())
+        if not pool:
+            return baby
+
+        while pool:
+            splice_me = pool.pop()
+            if splice_me[0:e.gene_len-1] not in baby:
+                continue
+
+            # pick a random point where the gene may be spliced in
+            pts = [i for i, v in enumerate(list(baby)) if v == splice_me[0]]
+            pt = random.choice(pts)
+            baby = baby[0:pt] + splice_me + baby[pt+e.gene_len:]
+            break
+
         return baby
 
 
@@ -89,10 +112,11 @@ class ScoredWord(Word):
         Define a new word using environment settings for scoring.
         """
         super().__init__(env, w)
-        self.letter_score = sum([ScoredWord.SCORES.get(l, 0)
+        self.letter_score = sum([ScoredWord.SCORES.get(l, -1*env.letter_weight)
                                  for l in self.word])
-        self.gene_score = sum([self.env.gene_scores.get(g, 0)
+        self.gene_score = sum([self.env.gene_scores.get(g, -1*env.gene_weight)
                                for g in self.genes()])
+        self.variety_score = len(set(self.word))
 
         # how many letters under/over the word is compared to the bounds
         len_short = max(0, self.env.word_min - len(self.word))
@@ -100,12 +124,15 @@ class ScoredWord(Word):
 
         self.score = sum([self.letter_score*env.letter_weight,
                           self.gene_score*env.gene_weight,
+                          self.variety_score*env.variety_weight,
                           len_short*env.short_weight,
                           len_long*env.long_weight])
 
     def __str__(self):
-        return "{} {}:{}:{}".format(self.word, self.letter_score,
-                                    self.gene_score, self.score)
+        f = "{} {: 0.2f}:{: 0.2f}:{: 0.2f} => {: 0.2f}"
+        return f.format(self.word,
+                        self.letter_score, self.gene_score, self.variety_score,
+                        self.score)
 
 
 class Phrase():
@@ -121,7 +148,7 @@ class Phrase():
 
     def __str__(self):
         swords = [str(w) for w in self.words]
-        return "{}={}".format("; ".join(swords), self.score)
+        return "[{}] ==> {: 0.2f}".format("; ".join(swords), self.score)
 
     def breed(phrase1, phrase2):
         """
@@ -208,11 +235,17 @@ class Codename():
         while len(newpop.keys()) < self.env.pop_size*1.5:
             p1, p2 = random.choices(self.population, k=2)
             baby = p1.breed(p2)
-            # print("xxx {} + {} = {}".format(p1, p2, baby))
             newpop[str(baby)] = baby
+
+        for p in self.population:
+            newpop[str(p)] = p
 
         self.population = list(newpop.values())
 
     def print_population(self):
         for p in self.population:
             print(str(p))
+
+    def pretty_population(self):
+        for p in self.population:
+            print(" ".join([w.word for w in p.words]))
