@@ -32,8 +32,9 @@ class Env():
         self.pop_size = pop_size
         self.letter_weight = letter_weight
         self.gene_weight = gene_weight
-        self.short_weight = short_weight
         self.variety_weight = variety_weight
+
+        self.short_weight = short_weight
         self.long_weight = long_weight
 
         self.gene_scores = {}
@@ -60,7 +61,6 @@ class Word():
         """
         g = self.env.gene_len
         max_genes = len(self.word)//g * g
-
         return [self.word[i:i+g] for i in range(0, max_genes)]
 
     def breed(parent1, parent2):
@@ -120,19 +120,20 @@ class ScoredWord(Word):
         self.variety_score = len(set(self.word))
 
         # how many letters under/over the word is compared to the bounds
-        len_short = max(0, self.env.word_min - len(self.word))
-        len_long = max(0, len(self.word) - self.env.word_max)
+        self.short_score = max(0, self.env.word_min - len(self.word))
+        self.long_score = max(0, len(self.word) - self.env.word_max)
 
-        self.score = sum([self.letter_score*env.letter_weight,
-                          self.gene_score*env.gene_weight,
-                          self.variety_score*env.variety_weight,
-                          len_short*env.short_weight,
-                          len_long*env.long_weight])
+        self.score = sum([self.letter_score*env.letter_weight*1.0,
+                          self.gene_score*env.gene_weight*1.0,
+                          self.variety_score*env.variety_weight*1.0,
+                          self.short_score*env.short_weight*1.0,
+                          self.long_score*env.long_weight*1.0])
 
     def __str__(self):
-        f = "{} {: 0.2f}:{: 0.2f}:{: 0.2f} => {: 0.2f}"
+        f = "{} {: 0.2f}:{: 0.2f}:{: 0.2f} {: 0.2f}:{: 0.2f}=> {: 0.2f}"
         return f.format(self.word,
                         self.letter_score, self.gene_score, self.variety_score,
+                        self.short_score, self.long_score,
                         self.score)
 
 
