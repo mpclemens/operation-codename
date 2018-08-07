@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import random
+import sys
 
 
 class Env():
@@ -173,9 +174,11 @@ class Codename():
         env: a Env instance
         corpus: a list of starting words
         """
+        random.seed()
         self.env = env
         self.corpus = [c for c in corpus if
-                       len(c) >= env.word_min and c[0].isalpha()]
+                       len(c) >= min(env.word_min, env.gene_len)
+                       and c[0].isalpha()]
         self.compute_gene_scores()
         self.build_population()
 
@@ -242,10 +245,10 @@ class Codename():
 
         self.population = list(newpop.values())
 
-    def print_population(self):
+    def print_population(self, outfile=sys.stdout):
         for p in self.population:
-            print(str(p))
+            outfile.write("{}\n".format(str(p)))
 
-    def pretty_population(self):
+    def pretty_population(self, outfile=sys.stdout):
         for p in self.population:
-            print(" ".join([w.word for w in p.words]))
+            outfile.write("{}\n".format(" ".join([w.word for w in p.words])))
