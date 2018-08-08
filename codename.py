@@ -114,20 +114,20 @@ class ScoredWord(Word):
         """
         super().__init__(env, w)
         self.letter_score = sum([ScoredWord.SCORES.get(l, -1*env.letter_weight)
-                                 for l in self.word])
+                                 for l in self.word])*1.0
         self.gene_score = sum([self.env.gene_scores.get(g, -1*env.gene_weight)
-                               for g in self.genes()])
-        self.variety_score = len(set(self.word))
+                               for g in self.genes()])*1.0
+        self.variety_score = len(set(self.word))*1.0
 
         # how many letters under/over the word is compared to the bounds
-        self.short_score = max(0, self.env.word_min - len(self.word))
-        self.long_score = max(0, len(self.word) - self.env.word_max)
+        self.short_score = max(0, self.env.word_min - len(self.word))*1.0
+        self.long_score = max(0, len(self.word) - self.env.word_max)*1.0
 
-        self.score = sum([self.letter_score*env.letter_weight*1.0,
-                          self.gene_score*env.gene_weight*1.0,
-                          self.variety_score*env.variety_weight*1.0,
-                          self.short_score*env.short_weight*1.0,
-                          self.long_score*env.long_weight*1.0])
+        self.score = sum([self.letter_score*env.letter_weight,
+                          self.gene_score*env.gene_weight,
+                          self.variety_score*env.variety_weight,
+                          self.short_score*env.short_weight*env.gene_len,
+                          self.long_score*env.long_weight*env.gene_len])
 
     def __str__(self):
         f = "{} {: 0.2f}:{: 0.2f}:{: 0.2f} {: 0.2f}:{: 0.2f}=> {: 0.2f}"
