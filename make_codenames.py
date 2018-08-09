@@ -21,9 +21,6 @@ parser.add_argument('--pop_size', type=int, nargs='?', default=200)
 parser.add_argument('--letter_weight', type=float, nargs='?', default=0.5)
 parser.add_argument('--gene_weight', type=float, nargs='?', default=1)
 parser.add_argument('--variety_weight', type=float, nargs='?', default=5)
-# penalties
-parser.add_argument('--short_weight', type=float, nargs='?', default=-10)
-parser.add_argument('--long_weight', type=float, nargs='?', default=-10)
 
 args = parser.parse_args()
 
@@ -34,9 +31,7 @@ e = Env(phrase_len=args.phrase_len,
         pop_size=args.pop_size,
         letter_weight=args.letter_weight,
         gene_weight=args.gene_weight,
-        variety_weight=args.variety_weight,
-        short_weight=args.short_weight,
-        long_weight=-args.long_weight)
+        variety_weight=args.variety_weight)
 
 args.outfile.write("# {}\n".format(args))
 

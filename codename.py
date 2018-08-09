@@ -17,14 +17,10 @@ class Env():
     letter_weight: multiplier for letter scores for fitness
     gene_weight: multiplier for gene scores for fitness
     variety_weight: multiplier for number of different letters
-
-    short_weight: multiplier for short-word penalty
-    long_weight: multiplier for long_word penalty
     """
     def __init__(self, gene_len=3, word_min=3, word_max=9,
                  phrase_len=2, pop_size=100,
-                 letter_weight=1, gene_weight=1, variety_weight=1,
-                 short_weight=-1, long_weight=-1):
+                 letter_weight=1, gene_weight=1, variety_weight=1):
         self.gene_len = gene_len
         self.word_min = word_min
         self.word_max = word_max
@@ -33,9 +29,6 @@ class Env():
         self.letter_weight = letter_weight
         self.gene_weight = gene_weight
         self.variety_weight = variety_weight
-
-        self.short_weight = short_weight
-        self.long_weight = long_weight
 
         self.gene_scores = {}
 
@@ -120,21 +113,23 @@ class ScoredWord(Word):
         self.variety_score = len(set(self.word))*1.0
 
         # how many letters under/over the word is compared to the bounds
-        self.short_score = max(0, self.env.word_min - len(self.word))*1.0
-        self.long_score = max(0, len(self.word) - self.env.word_max)*1.0
+        penalty = max(0,
+                      self.env.word_min - len(self.word),
+                      len(self.word) - self.env.word_max)
+
+        if penalty:
+            penalty = 1.0/penalty
+        else:
+            penalty = 1.0
 
         self.score = sum([self.letter_score*env.letter_weight,
                           self.gene_score*env.gene_weight,
-                          self.variety_score*env.variety_weight,
-                          self.short_score*env.short_weight*env.gene_len,
-                          self.long_score*env.long_weight*env.gene_len])
+                          self.variety_score*env.variety_weight])*penalty
 
     def __str__(self):
-        f = "{} {: 0.2f}:{: 0.2f}:{: 0.2f} {: 0.2f}:{: 0.2f}=> {: 0.2f}"
+        f = "{} {: 0.2f}:{: 0.2f}:{: 0.2f} => {: 0.2f}"
         return f.format(self.word,
-                        self.letter_score, self.gene_score, self.variety_score,
-                        self.short_score, self.long_score,
-                        self.score)
+                        self.letter_score, self.gene_score, self.variety_score,                        self.score)
 
 
 class Phrase():

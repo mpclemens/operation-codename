@@ -62,9 +62,7 @@ class TestCodename(unittest.TestCase):
     def test_word_length_scores(self):
         e = Env(gene_len=2,
                 word_min=4,
-                word_max=6,
-                long_weight=-4,
-                short_weight=-4)
+                word_max=6)
 
         # using the same letters to get a score purely based on letter value,
         # minus any deductions for being too long or short
@@ -91,27 +89,20 @@ class TestCodename(unittest.TestCase):
     def test_long_and_short_penalty(self):
         e = Env(gene_len=2,
                 word_min=4,
-                word_max=6,
-                letter_weight=0,
-                variety_weight=0,
-                gene_weight=0,
-                long_weight=-4,
-                short_weight=-4)
+                word_max=6)
 
         # using the same letters to get a score purely based on letter value,
-        # minus any deductions for being too long or short
-        #
-        # 'd' scores 2 points, and going over or under the word amounts costs
-        # one point
+        # with deductions for being too long or short
+
         base_word = ScoredWord(e, "dddd")
         short_word = ScoredWord(e, "dd")
         long_word = ScoredWord(e, "dddddddd")
 
-        self.assertEqual(0.0, base_word.score,
-                         msg="expected test word to have a score")
-        self.assertTrue(0.0 > short_word.score,
+        self.assertNotEqual(0.0, base_word.score,
+                            msg="expected test word to have a score")
+        self.assertTrue(base_word.score > short_word.score,
                         msg="expected penalty for short word")
-        self.assertTrue(0.0 > long_word.score,
+        self.assertTrue(base_word.score > long_word.score,
                         msg="expected penalty for long word")
 
     def test_phrase_score_is_sum(self):
